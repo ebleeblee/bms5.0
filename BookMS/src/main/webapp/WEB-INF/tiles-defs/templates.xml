@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE tiles-definitions PUBLIC
+       "-//Apache Software Foundation//DTD Tiles Configuration 2.0//EN"
+       "http://tiles.apache.org/dtds/tiles-config_2_0.dtd">
+
+<tiles-definitions>
+
+<!-- Default Main Template -->
+    <definition name=".mainTemplate" template="/WEB-INF/templates/main.jsp">
+        <put-attribute name="header" value="/WEB-INF/templates/header.jsp" />
+        <put-attribute name="body" value="" />
+        <put-attribute name="footer" value="/WEB-INF/templates/footer.jsp" />
+    </definition>
+    
+    <!-- hwpark's view template -->
+     <definition name="/proposalAdmin" extends=".mainTemplate">
+        <put-attribute name="body" value="/WEB-INF/views/proposalAdmin.jsp" />
+     </definition>
+     <!-- <definition name="/proposalRequest" extends=".mainTemplate">
+        <put-attribute name="body" value="/WEB-INF/views/proposalRequest.jsp" />
+     </definition> -->
+     <definition name="/proposalRejectDeny" extends=".mainTemplate">
+        <put-attribute name="body" value="/WEB-INF/views/proposalRejectDeny.jsp" />
+     </definition>
+    <!-- hwpark's view template -->
+    
+    <!-- eblee's user view template -->
+      <definition name="/login" extends=".mainTemplate">
+        <put-attribute name="body" value="/WEB-INF/views/login.jsp" />
+    </definition> 
+    
+    <definition name="/searchAll" extends=".mainTemplate">
+        <put-attribute name="body" value="/WEB-INF/views/userViews/book/searchAll.jsp" />
+    </definition>
+  
+    <definition name="/proposalList" extends=".mainTemplate">
+        <put-attribute name="body" value="/WEB-INF/views/userViews/user/proposalList.jsp" />
+    </definition>
+    
+     <definition name="/bookAdd" extends=".mainTemplate">
+        <put-attribute name="body" value="/WEB-INF/views/userViews/user/bookAdd.jsp" />
+    </definition> 
+    
+    <definition name="/getProposalBooks" extends=".mainTemplate">
+        <put-attribute name="body" value="/WEB-INF/views/userViews/user/getProposalBooks.jsp" />
+    </definition> 
+    
+     <definition name="/getEmpBooks" extends=".mainTemplate">
+        <put-attribute name="body" value="/WEB-INF/views/userViews/user/getEmpBooks.jsp" />
+    </definition> 
+    
+     <definition name="/modifyProposal" extends=".mainTemplate">
+        <put-attribute name="body" value="/WEB-INF/views/userViews/user/modifyProposal.jsp" />
+    </definition>
+    
+     <definition name="/detailProposal" extends=".mainTemplate">
+        <put-attribute name="body" value="/WEB-INF/views/userViews/user/detailProposal.jsp" />
+    </definition>
+    
+     <definition name="/paging" extends=".mainTemplate">
+        <put-attribute name="body" value="/WEB-INF/views/userViews/book/paging.jsp" />
+    </definition>
+    
+    <!-- 도서관리자변경히스토리 목록 -->
+    <definition name="/bookAdminList" extends=".mainTemplate">
+        <put-attribute name="body" value="/WEB-INF/views/bookAdminList.jsp" />
+    </definition>
+    
+     <definition name="/bookHistory" extends=".mainTemplate">
+        <put-attribute name="body" value="/WEB-INF/views/bookHistory.jsp" />
+    </definition>
+    
+     
+   <!--  <definition name="/proposalPrint" extends=".mainTemplate">
+        <put-attribute name="body" value="/WEB-INF/views/userViews/user/proposalPrint.jsp" />
+    </definition>  -->
+    <!--/. eblee's user view template -->
+</tiles-definitions>

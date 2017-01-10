@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE configuration PUBLIC "-//mybatis.org//DTD Config 3.0//EN" "http://mybatis.org/dtd/mybatis-3-config.dtd">
+<configuration>
+	
+	<typeAliases>
+		<typeAlias alias="Proposal" type="com.rock.book.model.Proposal" />
+		<typeAlias alias="User" type="com.rock.book.model.User"/>
+		<typeAlias alias="Emp" type="com.rock.book.model.Emp" />
+		<typeAlias alias="Book" type="com.rock.book.model.Book" />
+		<!-- eblee -->
+		<typeAlias alias="ProposalList" type="com.rock.book.model.ProposalList" />
+		<typeAlias alias="ProposalWrite" type="com.rock.book.model.ProposalWrite" />
+		<typeAlias alias="BookHolder" type="com.rock.book.model.BookHolder"/>
+		<typeAlias alias="Paging" type="com.rock.book.model.Paging"/>
+		<typeAlias alias="Emp" type="com.rock.book.model.Emp"/>
+		<typeAlias alias="MenuManage" type="com.rock.book.model.MenuManage"/>
+	</typeAliases>
+	
+</configuration>

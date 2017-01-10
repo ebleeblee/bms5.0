@@ -1,0 +1,471 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="proposalDao">
+	
+	<!-- 품의 승인 / 거절 -->
+	<update id="updateStatus" parameterType="Proposal">
+		update proposal
+		set book_status = #{book_status}
+		<if test ="deny != null">
+			,deny = #{deny}
+		</if>
+		where proposal_num = #{proposal_num}
+		</update>
+		
+	<!-- 승인 시 history_flag=3으로 만들기 -->
+	
+	
+	<select id="getBookNum" parameterType="hashmap" resultType="hashmap">
+		select book.book_num,book.is_copy,book.ea,book.company, proposal.book_count
+		from book, proposal
+		where book.proposal_num=proposal.proposal_num and book.proposal_num=#{proposalNum} 
+		<if test="RP != null">
+		and book.book_num not like '%-%'
+		</if>
+		<if test="OZ != null">
+		and book.book_num not like 'OZ-%-%'
+		</if> 
+		<!-- <choose>
+		<when test="company=#{company}">
+		and book.book_num not like '%-%'
+		</when>
+		
+		</choose> -->
+		
+		
+	</select>
+	
+	<!-- 컴퍼니 알기 -->
+	<select id="getCompany" parameterType="java.lang.Integer" resultType="hashmap">
+		select book.company 
+		from proposal,book 
+		where book.proposal_num = proposal.proposal_num and proposal.proposal_num=#{proposalNum}
+	</select>
+	 
+	
+	<update id="updateHistoryFlag" parameterType="java.lang.String">
+		update bms_admin_history 
+		set history_flag=3 
+		where book_num=#{bookNum}
+	</update>
+	
+	<!-- 승인도서번호 최대값 알아내기 -->
+	<select id="maxAcceptBookNum" resultType="java.lang.Integer">
+		select max(convert(accept_book_num, unsigned))
+		from accept_book
+	</select>
+	
+	<!-- oz 승인도서번호 최대값 -->
+	<select id="maxAcceptOZBookNum" resultType="java.lang.Integer">
+		 select max(convert(substring_index(substring_index(accept_book_num,'-',2),'-',-1), unsigned))
+		 from accept_book 
+		 where book_num like '%OZ%'
+	</select>
+	
+	<insert id="insertAcceptBook">
+		insert into accept_book(accept_book_num, book_num) 
+		values(#{acceptBookNum}, #{bookNum})
+	</insert>
+	
+	
+	<update id="updateBmsHistory" parameterType="hashmap">
+		update bms_history
+		set accept_book_num=#{acceptBookNum}
+		where book_num=#{bookNum} 
+	</update>
+	
+	<update id="updateBmsAdminHistory" parameterType="hashmap">
+		update bms_admin_history
+		set accept_book_num=#{acceptBookNum}
+		where book_num=#{bookNum} 
+	</update>
+	
+	<update id="updateBmsSecondHistory" parameterType="hashmap">
+		update bms_second_history
+		set accept_book_num=#{acceptBookNum}
+		where book_num=#{bookNum} 
+	</update>
+	
+	<update id="updateBook" parameterType="hashmap">
+		update book
+		set accept_book_num=#{acceptBookNum}
+		where book_num=#{bookNum} 
+	</update>
+	
+		
+	<!-- 메인 화면 -->
+	<select id="getProposalSearch" parameterType="hashmap" resultType="com.rock.book.model.Proposal">
+		select concat(lastname,firstname) as user_name,
+			   email,
+			   department_name,
+				proposal_num,
+			   proposal_date,
+			   proposal_price,
+			   book_status,
+			   purpose,
+			   deny,
+			   pay,
+			   vat,
+			   others,
+			   refer,
+			   agenda_1,
+			   agenda_2,
+			   agenda_3,
+			   agenda_4,
+			   rp_employee.code,
+			   first_charge_name,
+			   first_charge,
+			   substring(proposal.code,1,2) company
+		from rp_employee
+		inner JOIN rp_department
+		inner JOIN proposal
+		on rp_department.department_seq = rp_employee.department_seq and rp_employee.code = proposal.code
+		and proposal.delete_flag=0
+						
+		<if test="book_status != null"> 
+		<!-- 승인 / 거절에 따라 분류 -->
+			where book_status = #{book_status}
+		</if>
+		<choose>
+		<when test="sort_index != null and sort_index != ''">
+		ORDER BY
+			<choose>
+			<when test="sort_index == proposal_date">
+				${ sort_index } ${order_type}, proposal_date
+			</when>
+			<otherwise>
+				${ sort_index } ${order_type}
+			</otherwise>
+			</choose>
+		</when>
+		<otherwise>
+		ORDER BY	
+			proposal_num
+		</otherwise>
+		</choose>	
+		
+		<if test="current_page != null and max_rows != null">
+			LIMIT ${ (current_page - 1) * max_rows}, ${max_rows}
+		</if>
+	</select>
+	
+	<!-- 품의번호 검색 -->
+	<select id="getProposalNumSearch" parameterType="hashmap" resultType="Proposal">
+		select concat(lastname,firstname) as user_name,
+			   email,
+			   department_name,
+			   proposal_num,
+			   proposal_date,
+			   book_status,
+			   purpose,
+			   rp_employee.code,
+			   deny,
+			   first_charge_name
+		from rp_employee
+		inner JOIN rp_department
+		inner JOIN proposal
+		on rp_department.department_seq = rp_employee.department_seq and rp_employee.code = proposal.code and proposal.delete_flag=0
+		
+		<if test="book_status != null">
+			where book_status = #{book_status}
+		</if>	
+		<if test="search_value != null">
+			and proposal_num
+			like #{search_value}
+		</if>		
+		<choose>
+		<when test="sort_index != null and sort_index != ''">
+		ORDER BY
+			<choose>
+			<when test="sort_index == proposal_date">
+				${ sort_index } ${order_type}, proposal_date
+			</when>
+			<otherwise>
+				${ sort_index } ${order_type}
+			</otherwise>
+			</choose>
+		</when>
+		<otherwise>
+		ORDER BY	
+			proposal_date
+		</otherwise>
+		</choose>	
+		<if test="current_page != null and max_rows != null">
+			LIMIT ${ (current_page - 1) * max_rows}, ${max_rows}
+		</if>
+	</select>
+	
+	<!-- 부서 검색 -->
+	<select id="getProposalDept" parameterType="hashmap" resultType="Proposal">
+		select concat(lastname,firstname) as user_name,
+			   email,
+			   department_name,
+			   proposal_num,
+			   proposal_date,
+			   book_status,
+			   purpose,
+			   rp_employee.code,
+			   deny,
+			   first_charge_name
+		from rp_employee
+		inner JOIN rp_department
+		inner JOIN proposal
+		on rp_department.department_seq = rp_employee.department_seq and rp_employee.code = proposal.code and proposal.delete_flag=0
+		
+		<if test="book_status != null">
+			where book_status = #{book_status}
+		</if>	
+		<if test="search_value != null">
+			and department_name
+			like #{search_value}
+		</if>		
+		<choose>
+		<when test="sort_index != null and sort_index != ''">
+		ORDER BY
+			<choose>
+			<when test="sort_index == proposal_date">
+				${ sort_index } ${order_type}, proposal_date
+			</when>
+			<otherwise>
+				${ sort_index } ${order_type}
+			</otherwise>
+			</choose>
+		</when>
+		<otherwise>
+		ORDER BY	
+			proposal_date
+		</otherwise>
+		</choose>	
+		<if test="current_page != null and max_rows != null">
+			LIMIT ${ (current_page - 1) * max_rows}, ${max_rows}
+		</if>
+	</select>
+	
+	
+	<!-- 기안자 이름 검색 -->
+	<select id="getProposalPeopleSearch" parameterType="hashmap" resultType="Proposal">
+		select concat(lastname,firstname) as user_name,
+			   email,
+			   department_name,
+			   proposal_num,
+			   proposal_date,
+			   book_status,
+			   purpose,
+			   rp_employee.code,
+			   deny,
+			   first_charge_name
+			   
+		from rp_employee
+		inner JOIN rp_department
+		inner JOIN proposal
+		on rp_department.department_seq = rp_employee.department_seq and rp_employee.code = proposal.code and proposal.delete_flag=0
+		
+		<if test="book_status != null">
+			where book_status = #{book_status}
+		</if>		
+		<if test="search_value != null">
+			and concat(lastname,firstname)
+			like concat('%', #{search_value},'%')
+		</if>		
+		<choose>
+		<when test="sort_index != null and sort_index != ''">
+		ORDER BY
+			<choose>
+			<when test="sort_index == proposal_date">
+				${ sort_index } ${order_type}, proposal_date
+			</when>
+			<otherwise>
+				${ sort_index } ${order_type}
+			</otherwise>
+			</choose>
+		</when>
+		<otherwise>
+		ORDER BY	
+			proposal_date
+		</otherwise>
+		</choose>	
+		<if test="current_page != null and max_rows != null">
+			LIMIT ${ (current_page - 1) * max_rows}, ${max_rows}
+		</if>
+	</select>
+	
+	<!-- 관리자 검색 -->
+	<select id="getProposalAdmin" parameterType="hashmap" resultType="Proposal">
+		select concat(lastname,firstname) as user_name,
+			   email,
+			   department_name,
+			   proposal_num,
+			   proposal_date,
+			   book_status,
+			   purpose,
+			   rp_employee.code,
+			   deny,
+			   first_charge_name
+		from rp_employee
+		inner JOIN rp_department
+		inner JOIN proposal
+		on rp_department.department_seq = rp_employee.department_seq and rp_employee.code = proposal.code and proposal.delete_flag=0
+		
+		<if test="book_status != null">
+			where book_status = #{book_status}
+		</if>	
+		<if test="search_value != null">
+			and first_charge_name
+			like #{search_value}
+		</if>		
+		<choose>
+		<when test="sort_index != null and sort_index != ''">
+		ORDER BY
+			<choose>
+			<when test="sort_index == proposal_date">
+				${ sort_index } ${order_type}, proposal_date
+			</when>
+			<otherwise>
+				${ sort_index } ${order_type}
+			</otherwise>
+			</choose>
+		</when>
+		<otherwise>
+		ORDER BY	
+			proposal_date
+		</otherwise>
+		</choose>	
+		<if test="current_page != null and max_rows != null">
+			LIMIT ${ (current_page - 1) * max_rows}, ${max_rows}
+		</if>
+	</select>
+	
+	
+	<!-- 전체 페이징 처리 count -->
+	<select id="getProposalCount" parameterType="hashmap" resultType="Integer">
+		select 
+			count(1)
+		from proposal
+		inner join rp_employee
+		on rp_employee.code = proposal.code and proposal.delete_flag=0
+		<if test="book_status != null">
+			where book_status = #{book_status}
+		</if>
+	</select>
+	
+	<!-- 품의 번호 페이징 처리 count -->
+	<select id="getProposalNumCount" parameterType="hashmap" resultType="Integer">
+		select 
+			count(1)
+		from proposal
+		inner join rp_employee
+		on rp_employee.code = proposal.code and proposal.delete_flag=0
+		
+		<if test="book_status != null">
+			where book_status = #{book_status}
+		</if>
+		
+		<if test="search_value != null">
+			and proposal_num
+			like #{search_value}
+		</if>
+	</select>
+	
+	<!-- 기안자 이름 페이징 처리 count -->
+	<select id="getProposalNameCount" parameterType="hashmap" resultType="Integer">
+		select 
+			count(1)
+		from proposal
+		inner join rp_employee
+		on rp_employee.code = proposal.code and proposal.delete_flag=0
+		
+		<if test="book_status != null">
+			where book_status = #{book_status}
+		</if>
+		
+		<if test="search_value != null">
+			and concat(lastname,firstname)
+			like concat('%', #{search_value},'%')
+		</if>
+	</select>
+	
+	<!-- 부서 페이징 처리 count/ eblee  -->
+	<select id="getProposalDeptCount" parameterType="hashmap" resultType="Integer">
+		 select count(1), concat(lastname,firstname) as user_name,
+			   email,
+			   department_name,
+			   proposal_num,
+			   proposal_date,
+			   book_status,
+			   purpose,
+			   rp_employee.code,
+			   deny,
+			   first_charge
+		from rp_employee
+		inner JOIN rp_department
+		inner JOIN proposal
+		on rp_department.department_seq = rp_employee.department_seq and rp_employee.code = proposal.code and proposal.delete_flag=0
+		<if test="book_status != null">
+			where book_status = #{book_status}
+		</if>
+		
+		<if test="search_value != null">
+			and department_name
+			like concat('%', #{search_value},'%')
+		</if>
+	</select>
+	
+	
+	<!-- 관리자 페이징처리 count / eblee -->
+	<select id="getProposalAdminCount" parameterType="hashmap" resultType="Integer">
+		select 
+			count(1)
+		from proposal
+		inner join rp_employee
+		on rp_employee.code = proposal.code and proposal.delete_flag=0
+		
+		<if test="book_status != null">
+			where book_status = #{book_status
+		</if>
+		
+		<if test="search_value != null">
+			and  first_charge
+			like concat('%', #{search_value},'%')
+		</if>
+	</select>
+	
+	
+	<!-- 도서 관리자 히스토리 보는 목록 / eblee-->
+	<select id="bookAdminList" parameterType="hashmap" resultType="hashmap">
+		select B.book_num bookNum, A.book_name bookName, concat(D.lastname,D.firstname) empName, date(B.change_time) changeDate, B.change_reason changeReason, E.first_charge_name firstCharge
+		from book A, bms_admin_history B, rp_employee D, proposal E
+		where A.book_num= B.book_num and B.code = D.code and A.proposal_num = E.proposal_num and history_flag=0 and B.book_num=#{bookNum} and E.delete_flag=0
+		order by B.change_time asc
+		<if test="current_page != null and max_rows != null">
+			LIMIT ${ (current_page - 1) * max_rows}, ${max_rows}
+		</if>
+	</select>
+	
+	<!-- 도서 관리자(부) 히스토리 보는 목록 / eblee-->
+	<select id="bookSecondList" parameterType="hashmap" resultType="hashmap">
+		select B.book_num bookNum, A.book_name bookName, concat(D.lastname,D.firstname) empName, date(B.change_time) changeDate, B.change_reason changeReason, E.second_charge_name secondCharge
+		from book A, bms_second_history B, rp_employee D, proposal E
+		where A.book_num= B.book_num and B.code = D.code and A.proposal_num = E.proposal_num and history_flag=0 and B.book_num=#{bookNum} and E.delete_flag=0
+		order by B.change_time asc
+		<if test="current_page != null and max_rows != null">
+			LIMIT ${ (current_page - 1) * max_rows}, ${max_rows}
+		</if>
+	</select>
+
+	<!-- 카운트 세기 -->
+	<select id="countBookAdminList" resultType="java.lang.Integer">
+		select count(*)
+		from book A, bms_admin_history B, bms_history C, rp_employee D
+		where A.book_num= B.book_num and B.code = D.code and C.book_num = B.book_num
+	</select>
+	
+	<!-- 변경이력 없을때 최초 관리자(정),(부) 불러오기 -->
+	<select id="getBookFAdmin" parameterType="java.lang.String" resultType="hashmap">
+		select proposal.first_charge_name firstCharge, proposal.second_charge_name secondCharge
+        from book, proposal
+        where book_num = #{bookNum} and book.proposal_num = proposal.proposal_num
+	</select>
+
+</mapper>

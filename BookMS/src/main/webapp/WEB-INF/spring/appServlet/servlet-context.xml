@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans:beans xmlns="http://www.springframework.org/schema/mvc"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:task="http://www.springframework.org/schema/task"
+	xmlns:beans="http://www.springframework.org/schema/beans"
+	xmlns:context="http://www.springframework.org/schema/context"
+	xsi:schemaLocation="http://www.springframework.org/schema/mvc http://www.springframework.org/schema/mvc/spring-mvc.xsd
+		http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+		http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd
+		http://www.springframework.org/schema/task http://www.springframework.org/schema/task/spring-task.xsd">
+
+
+	<!-- =================== RESOURCE DEFINITIONS =================== -->
+	<beans:bean id="propertyConfigurer" class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer">
+		<beans:property name="locations">
+		<beans:list>
+			<beans:value>WEB-INF/properties/ldap.properties</beans:value>
+		</beans:list>
+		</beans:property>
+		
+	</beans:bean>
+	
+	<!-- DispatcherServlet Context: defines this servlet's request-processing infrastructure -->
+	
+	<!-- Enables the Spring MVC @Controller programming model -->
+	<annotation-driven />
+
+	<!-- Handles HTTP GET requests for /resources/** by efficiently serving up static resources in the ${webappRoot}/resources directory -->
+	<resources mapping="/resources/**" location="/resources/" />
+
+	<!-- Resolves views selected for rendering by @Controllers to .jsp resources in the /WEB-INF/views directory -->
+	<beans:bean class="org.springframework.web.servlet.view.InternalResourceViewResolver">
+		<beans:property name="prefix" value="/WEB-INF/views/" />
+		<beans:property name="suffix" value=".jsp" />
+	</beans:bean>
+	
+	<interceptors>
+        <interceptor>
+            <mapping path="/**"/>
+                
+            <exclude-mapping path="/login**"/>
+            <exclude-mapping path="/join**"/>
+            <exclude-mapping path="/resources/**"/>
+           <!--  <exclude-mapping path="/resources/eblee/css/**"/>
+            <exclude-mapping path="/resources/eblee/img/**"/>
+            <exclude-mapping path="/resources/eblee/js/**"/> -->
+            
+            
+            
+            <beans:bean class="com.rock.book.utils.SessionInterceptor"/>
+       </interceptor>
+    </interceptors>
+	
+	<context:component-scan base-package="com.rock.book" />
+	
+	 <!-- 메일보내기 -->
+	<!-- <beans:bean id="mailSender" class="org.springframework.mail.javamail.JavaMailSenderImpl">
+		<beans:property name="host" value="${mail.host}"/>
+		<beans:property name="username" value="${mail.username}"/>
+		<beans:property name="password" value="${mail.password}"/>
+		<beans:property name="port" value="${mail.port}"/>
+		<beans:property name="javaMailProperties">
+			<beans:props>
+				<beans:prop key="mail.smtp.auth">${mail.smtp.auth}</beans:prop>
+				<beans:prop key="mail.smtp.starttls.enable">${mail.smtp.starttls.enable}</beans:prop>
+				<beans:prop key="hostname">${mail.host}</beans:prop>
+			</beans:props>
+		</beans:property>
+	</beans:bean> -->
+	
+	<!-- Tiles 2 resolver. 추가 -->
+    <beans:bean id="tilesViewResolver" class="org.springframework.web.servlet.view.UrlBasedViewResolver">
+         <beans:property name="viewClass" value="org.springframework.web.servlet.view.tiles2.TilesView" />
+         <beans:property name="order" value="1" />
+    </beans:bean>
+   
+	
+	 <!-- Tiles 2 definition lists. 추가 -->
+    <beans:bean id="tilesConfigurer" class="org.springframework.web.servlet.view.tiles2.TilesConfigurer">
+         <beans:property name="definitions">
+              <beans:list>
+                   <beans:value>/WEB-INF/tiles-defs/templates.xml</beans:value>
+              </beans:list>
+         </beans:property>
+    </beans:bean>
+    
+    
+    <!-- 
+	rhcho - 2014.01.16
+	LDAP 설정 추가
+	 -->
+	<beans:bean id="contextSource" class="org.springframework.ldap.core.support.LdapContextSource">
+		<beans:property name="url" value="${ldap.url}" />
+		<beans:property name="base" value="${ldap.base}" />
+	</beans:bean>
+	
+	<beans:bean id="ldapTemplate" class="org.springframework.ldap.core.LdapTemplate">
+		<beans:constructor-arg ref="contextSource" />
+	</beans:bean>
+   
+</beans:beans>

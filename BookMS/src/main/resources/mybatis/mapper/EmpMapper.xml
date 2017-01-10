@@ -1,0 +1,553 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+    PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!-- 
+	Emp용 Mapper
+	작성자 : mjkim
+	작성일 : 2013.12.26
+ -->
+<mapper namespace="empDao">
+
+	<!-- 임직원 정보 모두 가져오기 -->
+	<select id="getAllEmps" resultType="Emp">
+		SELECT	*,	CONCAT(lastname, firstname)	AS name
+		FROM	rp_employee emp
+		INNER JOIN	rp_department dept
+		ON	emp.department_seq = dept.department_seq
+		WHERE	delete_flag = false
+		ORDER BY	name
+	</select>
+	
+	<!-- 임직원 정보 가져오기 -->
+	<select id="getEmps" parameterType="String" resultType="Emp">
+		SELECT	*
+		FROM	rp_employee emp
+		INNER JOIN	rp_department dept
+		ON	emp.department_seq = dept.department_seq
+		WHERE	code = #{code}
+	</select>
+	
+	<!-- rhcho - 2014.01.16
+	ID로 임직원 정보 가져오기
+	mjkim - 2016.03.03 수정
+	 -->
+	<select id="getEmpById" parameterType="String" resultType="Emp">
+		SELECT 
+		    *
+		FROM
+		    rp_erp_member mb,
+		    rp_employee emp
+		INNER JOIN
+		    rp_department dept 
+		ON 
+			emp.department_seq = dept.department_seq
+		WHERE
+		    mb.code = emp.code AND id = #{id}
+	</select>
+	
+	<!-- 임직원 정보 생성 -->
+	<insert id="insertEmp" parameterType="Emp">
+		INSERT	rp_employee	
+		SET		code = #{code},
+				firstname = #{firstname},
+				lastname = #{lastname},
+				<if test="hire_date != ''">hire_date = #{hire_date}</if>
+				<if test="hire_date == ''">hire_date = NULL</if>,
+				<if test="department_seq != ''">department_seq = #{department_seq}</if>
+				<if test="department_seq == ''">department_seq = NULL</if>,
+				<if test="rank != ''">rank = #{rank}</if>
+				<if test="rank == ''">rank = NULL</if>,
+				<if test="cellphone != ''">cellphone = #{cellphone}</if>
+				<if test="cellphone == ''">cellphone = NULL</if>,
+				<if test="telephone != ''">telephone = #{telephone}</if>
+				<if test="telephone == ''">telephone = NULL</if>,
+				<if test="email != ''">email = #{email}</if>
+				<if test="email == ''">email = NULL</if>,
+				<if test="solar_birthday != ''">solar_birthday = #{solar_birthday}</if>
+				<if test="solar_birthday == ''">solar_birthday = NULL</if>,
+				<if test="lunar_birthday != ''">lunar_birthday = #{lunar_birthday}</if>
+				<if test="lunar_birthday == ''">lunar_birthday = NULL</if>,
+				<if test="wedding_anniversary != ''">wedding_anniversary = #{wedding_anniversary}</if>
+				<if test="wedding_anniversary == ''">wedding_anniversary = NULL</if>
+	</insert>
+	
+	<!-- 임직원 정보 수정 -->
+	<update id="updateEmp" parameterType="Emp">
+		UPDATE	rp_employee
+		SET	firstname = #{firstname},
+			lastname = #{lastname},
+			<if test="hire_date != ''">hire_date = #{hire_date}</if>
+			<if test="hire_date == ''">hire_date = NULL</if>,
+			<if test="department_seq != ''">department_seq = #{department_seq}</if>
+			<if test="department_seq == ''">department_seq = NULL</if>,
+			<if test="rank != ''">rank = #{rank}</if>
+			<if test="rank == ''">rank = NULL</if>,
+			<if test="cellphone != ''">cellphone = #{cellphone}</if>
+			<if test="cellphone == ''">cellphone = NULL</if>,
+			<if test="telephone != ''">telephone = #{telephone}</if>
+			<if test="telephone == ''">telephone = NULL</if>,
+			<if test="email != ''">email = #{email}</if>
+			<if test="email == ''">email = NULL</if>,
+			<if test="solar_birthday != ''">solar_birthday = #{solar_birthday}</if>
+			<if test="solar_birthday == ''">solar_birthday = NULL</if>,
+			<if test="lunar_birthday != ''">lunar_birthday = #{lunar_birthday}</if>
+			<if test="lunar_birthday == ''">lunar_birthday = NULL</if>,
+			<if test="wedding_anniversary != ''">wedding_anniversary = #{wedding_anniversary}</if>
+			<if test="wedding_anniversary == ''">wedding_anniversary = NULL</if>
+		WHERE code = #{code}
+	</update>
+	
+	<!--  임직원 정보 삭제 -->
+	<update id="deleteEmp" parameterType="String">
+		UPDATE	rp_employee
+		SET	delete_flag = 1
+		WHERE code = #{code}
+	</update>
+	
+	<!-- 임직원 정보 검색 -->
+	<select id="searchEmp" parameterType="hashmap" resultType="Emp">
+		SELECT	* 
+		FROM	(
+				SELECT	*, CONCAT(lastname, firstname) AS name 
+				FROM	rp_employee
+				WHERE	delete_flag = false
+				) AS rp_employee
+		INNER JOIN	rp_department dept
+		ON	rp_employee.department_seq = dept.department_seq
+		<if test="search_value != null">
+		WHERE	name 
+		LIKE	CONCAT(
+				'%', 
+				#{ search_value }, 
+				'%'
+				)
+		</if>
+		<choose>
+		<when test="sort_index != null and sort_index != ''">
+		ORDER BY
+			<choose>
+			<when test="sort_index == 'department_name'">
+				${ sort_index } ${order_type}, name
+			</when>
+			<otherwise>
+				${ sort_index } ${order_type}
+			</otherwise>
+			</choose>
+		</when>
+		<otherwise>
+		ORDER BY	
+			name
+		</otherwise>
+		</choose>
+	</select>
+	
+	<!-- Local 로그인 처리 -->
+	<select id="loginProc" parameterType="Emp" resultType="Emp">
+		SELECT	*
+		FROM	rp_erp_member
+		WHERE	id = #{id} and
+				password = password(#{password})
+	</select>
+	
+	<!-- 관리자 (양력)생일 쿠폰 출력 -->
+	<select id="getSolarBirth" resultType="Emp">
+		SELECT	*, CONCAT(IF(DATE_FORMAT(ADDDATE(CURRENT_DATE(), (7-(DAYOFWEEK(now())-1))), '%Y-%m-%d')>=CONCAT(YEAR(CURRENT_DATE()),SUBSTR(solar_birthday,5,11)), YEAR(CURRENT_DATE()), YEAR(CURRENT_DATE())-1),SUBSTR(solar_birthday,5,11)) as birthday
+		FROM	rp_employee
+		WHERE	email = #{id}
+				and delete_flag = false
+	</select>
+	
+	<!-- 관리자 (음력)생일 쿠폰 출력 -->
+	<select id="getLunarBirth" resultType="Emp">
+		SELECT	*, CONCAT(IF(DATE_FORMAT(ADDDATE(CURRENT_DATE(), (7-(DAYOFWEEK(now())-1))), '%Y-%m-%d')>=CONCAT(YEAR(CURRENT_DATE()),SUBSTR(solar_birthday,5,11)), YEAR(CURRENT_DATE()), YEAR(CURRENT_DATE())-1),SUBSTR(solar_birthday,5,11)) as birthday 
+		FROM	(
+				SELECT	code, firstname, lastname, department_seq, email, solar_date as solar_birthday, lunar_birthday, delete_flag
+				FROM	rp_employee, g4_lunartosolar 
+				WHERE	CONCAT(
+							IF(YEAR(CURRENT_DATE()=solar_date) >= YEAR(CURRENT_DATE()), YEAR(CURRENT_DATE()), YEAR(CURRENT_DATE())-1), 
+							SUBSTR(
+								lunar_birthday, 
+								5, 
+								11
+							)
+						) = lunar_date 
+						and yun = 0
+						and email = #{id}
+				) 
+				AS rp_employee 
+		WHERE	delete_flag = false
+	</select>
+	
+	<!-- 관리자 결혼기념일 쿠폰 출력 -->
+	<select id="getWedding" resultType="Emp">
+		SELECT	*, CONCAT(IF(DATE_FORMAT(ADDDATE(CURRENT_DATE(), (7-(DAYOFWEEK(now())-1))), '%Y-%m-%d')>=CONCAT(YEAR(CURRENT_DATE()),SUBSTR(wedding_anniversary,5,11)), YEAR(CURRENT_DATE()), YEAR(CURRENT_DATE())-1),SUBSTR(wedding_anniversary,5,11)) as wedding_day
+		FROM	rp_employee
+		WHERE	email = #{id}
+				and delete_flag = false
+	</select>
+	
+	<!-- 출력 로그 생성-->
+	<insert  id="insertLog" parameterType="Emp">
+		INSERT INTO	rp_couponsystem_check (
+				category_id,
+				id,
+				date,
+				status)
+		VALUES (
+			#{category_id},
+			#{id},
+			now(),
+			2
+		)
+	</insert>
+	
+	<!-- 식권 출력 체크 -->
+	<select id="getChkMeal" parameterType="String" resultType="Emp">
+		SELECT	*, count(*)	AS cnt
+		FROM	rp_couponsystem_check 
+		WHERE	(
+				status != 1 
+				and year(date) = year(curdate()) 
+				and month(date) = month(curdate())
+				)
+				and id = #{id}
+				and category_id = 'meal'
+	</select>
+	
+	<!-- 관리자 식권 출력 -->
+	<select id="getAdminMeal" resultType="Emp">
+		SELECT	*
+		FROM	rp_employee
+		WHERE	email = #{id}
+	</select>
+	
+	<!-- 생일(양력) 쿠폰 발급 대상자 체크 -->
+	<select id="getSolarCouponChk" resultType="Emp">
+		SELECT	firstname, lastname, solar_birthday, count(*)	AS	solar_chk, CONCAT(IF(DATE_FORMAT(ADDDATE(CURRENT_DATE(), (7-(DAYOFWEEK(now())-1))), '%Y-%m-%d')>=CONCAT(YEAR(CURRENT_DATE()),SUBSTR(solar_birthday,5,11)), YEAR(CURRENT_DATE()), YEAR(CURRENT_DATE())-1),SUBSTR(solar_birthday,5,11)) as birthday, delete_flag
+		FROM	rp_employee
+		WHERE	(
+				date_format(current_date(), '%Y-%m-%d')
+				BETWEEN	date_format(adddate(CONCAT(IF(DATE_FORMAT(ADDDATE(CURRENT_DATE(), (7-(DAYOFWEEK(now())-1))), '%Y-%m-%d')>=CONCAT(YEAR(CURRENT_DATE()),SUBSTR(solar_birthday,5,11)), YEAR(CURRENT_DATE()), YEAR(CURRENT_DATE())-1),SUBSTR(solar_birthday,5,11)),
+						INTERVAL(weekday(CONCAT(IF(DATE_FORMAT(ADDDATE(CURRENT_DATE(), (7-(DAYOFWEEK(now())-1))), '%Y-%m-%d')>=CONCAT(YEAR(CURRENT_DATE()),SUBSTR(solar_birthday,5,11)), YEAR(CURRENT_DATE()), YEAR(CURRENT_DATE())-1),SUBSTR(solar_birthday,5,11)))) * -1 day), '%Y-%m-%d') 
+						and date_format(last_day(adddate(CONCAT(IF(DATE_FORMAT(ADDDATE(CURRENT_DATE(), (7-(DAYOFWEEK(now())-1))), '%Y-%m-%d')>=CONCAT(YEAR(CURRENT_DATE()),SUBSTR(solar_birthday,5,11)), YEAR(CURRENT_DATE()), YEAR(CURRENT_DATE())-1),SUBSTR(solar_birthday,5,11)), 
+						(60))), '%Y-%m-%d')
+				)  
+				and email = #{id}
+				and delete_flag = false
+	</select>
+	
+	<!-- 생일(음력) 쿠폰 발급 대상자 체크 -->
+	<select id="getLunarCouponChk" resultType="Emp">
+		SELECT	firstname, lastname, solar_birthday, count(*)	AS	lunar_chk, CONCAT(IF(DATE_FORMAT(ADDDATE(CURRENT_DATE(), (7-(DAYOFWEEK(now())-1))), '%Y-%m-%d')>=CONCAT(YEAR(CURRENT_DATE()),SUBSTR(solar_birthday,5,11)), YEAR(CURRENT_DATE()), YEAR(CURRENT_DATE())-1),SUBSTR(solar_birthday,5,11)) as birthday
+		FROM	(
+				SELECT	code, firstname, lastname, email, solar_date as solar_birthday, delete_flag
+				FROM	rp_employee, g4_lunartosolar 
+				WHERE	CONCAT(
+							IF(YEAR(CURRENT_DATE()=solar_date) >= YEAR(CURRENT_DATE()), YEAR(CURRENT_DATE()), YEAR(CURRENT_DATE())-1), 
+							SUBSTR(
+								lunar_birthday, 
+								5, 
+								11
+							)
+						) = lunar_date 
+						and yun = 0
+						and email = #{id}
+				)
+				AS rp_employee 
+		WHERE	(
+				date_format(current_date(), '%Y-%m-%d')
+				BETWEEN	date_format(adddate(CONCAT(IF(DATE_FORMAT(ADDDATE(CURRENT_DATE(), (7-(DAYOFWEEK(now())-1))), '%Y-%m-%d')>=CONCAT(YEAR(CURRENT_DATE()),SUBSTR(solar_birthday,5,11)), YEAR(CURRENT_DATE()), YEAR(CURRENT_DATE())-1),SUBSTR(solar_birthday,5,11)),
+						INTERVAL(weekday(CONCAT(IF(DATE_FORMAT(ADDDATE(CURRENT_DATE(), (7-(DAYOFWEEK(now())-1))), '%Y-%m-%d')>=CONCAT(YEAR(CURRENT_DATE()),SUBSTR(solar_birthday,5,11)), YEAR(CURRENT_DATE()), YEAR(CURRENT_DATE())-1),SUBSTR(solar_birthday,5,11)))) * -1 day), '%Y-%m-%d') 
+						and date_format(last_day(adddate(CONCAT(IF(DATE_FORMAT(ADDDATE(CURRENT_DATE(), (7-(DAYOFWEEK(now())-1))), '%Y-%m-%d')>=CONCAT(YEAR(CURRENT_DATE()),SUBSTR(solar_birthday,5,11)), YEAR(CURRENT_DATE()), YEAR(CURRENT_DATE())-1),SUBSTR(solar_birthday,5,11)), 
+						(60))), '%Y-%m-%d')
+				)
+				and delete_flag = false
+	</select>
+	
+	<!-- 결혼기념일 쿠폰 발급 대상자 체크 -->
+	<select id="getWeddingCouponChk" resultType="Emp">
+		SELECT	firstname, lastname, wedding_anniversary, count(*)	AS	wedding_chk, CONCAT(IF(DATE_FORMAT(ADDDATE(CURRENT_DATE(), (7-(DAYOFWEEK(now())-1))), '%Y-%m-%d')>=CONCAT(YEAR(CURRENT_DATE()),SUBSTR(wedding_anniversary,5,11)), YEAR(CURRENT_DATE()), YEAR(CURRENT_DATE())-1),SUBSTR(wedding_anniversary,5,11)) as wedding_day, delete_flag
+		FROM	rp_employee
+		WHERE	(
+				date_format(current_date(), '%Y-%m-%d')
+				BETWEEN	date_format(adddate(CONCAT(IF(DATE_FORMAT(ADDDATE(CURRENT_DATE(), (7-(DAYOFWEEK(now())-1))), '%Y-%m-%d')>=CONCAT(YEAR(CURRENT_DATE()),SUBSTR(wedding_anniversary,5,11)), YEAR(CURRENT_DATE()), YEAR(CURRENT_DATE())-1),SUBSTR(wedding_anniversary,5,11)),
+						INTERVAL(weekday(CONCAT(IF(DATE_FORMAT(ADDDATE(CURRENT_DATE(), (7-(DAYOFWEEK(now())-1))), '%Y-%m-%d')>=CONCAT(YEAR(CURRENT_DATE()),SUBSTR(wedding_anniversary,5,11)), YEAR(CURRENT_DATE()), YEAR(CURRENT_DATE())-1),SUBSTR(wedding_anniversary,5,11)))) * -1 day), '%Y-%m-%d') 
+						and date_format(last_day(adddate(CONCAT(IF(DATE_FORMAT(ADDDATE(CURRENT_DATE(), (7-(DAYOFWEEK(now())-1))), '%Y-%m-%d')>=CONCAT(YEAR(CURRENT_DATE()),SUBSTR(wedding_anniversary,5,11)), YEAR(CURRENT_DATE()), YEAR(CURRENT_DATE())-1),SUBSTR(wedding_anniversary,5,11)), 
+						(60))), '%Y-%m-%d')
+				) 
+				and email = #{id}
+				and delete_flag = false
+	</select>
+	
+	<!-- 생일 쿠폰 출력 체크 -->
+	<select id="getChkBirthCoupon" parameterType="String" resultType="Emp">
+		SELECT	*, count(*) AS cnt
+		FROM	rp_couponsystem_check 
+		WHERE	(
+				status != 1 
+				and year(date) = year(curdate()) 
+				and month(date) = month(curdate())
+				)
+				and id = #{id}
+				and category_id = 'birth'
+	</select>
+	
+	<!-- 결혼기념일 쿠폰 출력 체크 -->
+	<select id="getChkWeddingCoupon" parameterType="String" resultType="Emp">
+		SELECT	*, count(*) AS cnt
+		FROM	rp_couponsystem_check 
+		WHERE	(
+				status != 1 
+				and year(date) = year(curdate()) 
+				and month(date) = month(curdate())
+				)
+				and id = #{id}
+				and category_id = 'wedding'
+	</select>
+	
+	<!-- 출력 상태 조회 -->
+	<select id="getLog" parameterType="String" resultType="Emp">
+		SELECT	*
+		FROM	rp_couponsystem_check 
+		WHERE	(
+				status != 1
+				and year(date) = year(curdate()) 
+				and month(date) = month(curdate())
+				)
+				and id = #{id}
+	</select>
+	
+	<!-- 출력 상태 관리 -->
+	<update id="updateLog" parameterType="Emp">
+		UPDATE	rp_couponsystem_check	
+		SET		date = now(),
+				status = 1
+		WHERE	seq = #{seq}
+				and id = #{id}
+				and category_id = #{category_id}
+	</update>
+	
+	<!-- 재출력 관리 -->
+	<select id="getAgainLog" parameterType="hashmap" resultType="Emp">
+		SELECT	firstname, lastname, email, category_id, id,  DATE_FORMAT(date, '%Y-%m-%d %H:%i:%S') AS date, status, CONCAT(lastname, firstname) AS name
+		FROM	rp_employee a, rp_couponsystem_check b 
+		WHERE	a.email = b.id 
+		AND		b.status = 1
+		ORDER BY 
+		<choose>
+			<when test="sort_index != null and sort_index != ''">
+				<choose>
+					<when test="sort_index == 'category_id'">
+					${ sort_index } ${order_type}, b.date
+					</when>
+					<otherwise>
+					${ sort_index } ${order_type}
+					</otherwise>
+				</choose>
+			</when>
+			<otherwise>
+				b.date		
+			</otherwise>
+		</choose>
+	</select>
+	
+	<!-- 
+	rhcho - 2014.01.17
+	LDAP 로그인 처리용
+	 -->
+	 <!-- 사번 -->
+	 <select id="getUserCodeByEmail" parameterType="String" resultType="String">
+	 	SELECT 
+	 		code 
+	 	FROM
+	 		rp_employee 
+	 	WHERE 
+	 		email = #{ id }
+	 </select>
+	 <!-- 로그인 후 erp 테이블에 id, code 추가 -->
+	 <insert id="insertErpMemberForLDAP" parameterType="Emp">
+	 	INSERT INTO
+	 		rp_erp_member (
+	 			id, 
+	 			authentification_method, 
+	 			code
+	 		) VALUES (
+	 			#{id},
+	 			'LDAP',
+	 			#{code}
+	 		)
+	 </insert>
+
+	<!-- rhcho 2014.05.27  -->
+		<!-- 사원 정보 모두 가져오기 -->
+	<select id="getAllErpEmps" resultType="Emp">
+		SELECT	*
+		FROM	rp_employee a
+		INNER JOIN 
+		rp_erp_member b
+		ON a.code = b.code
+		ORDER BY concat(a.lastname, a.firstname)
+	</select>
+	
+	<!-- rhcho 2014.07.02 seq로 사원 가져오기 -->
+	<select id="getEmpUsingSeq" parameterType="Integer" resultType="Emp">
+		SELECT	*
+		FROM	rp_employee a
+		INNER JOIN 
+		rp_erp_member b
+		ON a.code = b.code
+		WHERE b.seq = #{ seq }
+	</select>
+	
+	<!-- mjkim	2015.03.11	최종 로그인 시간 DB기록 -->
+	<update id="updateLoginTime" parameterType="Emp">
+		UPDATE	rp_erp_member	
+		SET		last_login = now()
+		WHERE	id = #{id}
+	</update>
+	
+	<!-- mjkim	2016.03.03	부서 정보 불러오기 -->
+	<select id="getDept" resultType="Emp">
+		SELECT 
+			a.department_seq,
+		    a.department_name,
+		    a.group_mail,
+		    a.parent_seq
+		FROM
+			rp_department	a
+		LEFT JOIN
+			rp_department	b
+		ON
+			a.parent_seq = b.department_seq
+	</select>
+	
+	<!-- mjkim	2016.03.08	부서 정보 추가하기 -->
+	<insert id="insertDept" parameterType="Emp">
+		INSERT INTO 
+			rp_department (
+				department_name, 
+				group_mail, 
+				parent_seq
+			) 
+			VALUES (
+				#{ department_name }, 
+				#{ group_mail }, 
+				#{ parent_seq }
+			)
+	</insert>
+	
+	<!-- mjkim	2016.03.08	부서 정보 수정하기 -->
+	<update id="updateDept" parameterType="Emp">
+		UPDATE 
+			rp_department 
+		SET 
+			department_name = #{ department_name }, 
+			group_mail = #{ group_mail }, 
+			parent_seq = #{ parent_seq} 
+		WHERE 
+			department_seq = #{ department_seq }
+	</update>
+	
+	<!-- mjkim	2016.03.07	열람 권한 불러오기 -->
+	<select id="getRole" resultType="Emp">
+		SELECT 
+			emp.code,
+			emp.firstname,
+			emp.lastname,
+			CONCAT(emp.lastname, emp.firstname) AS name,
+		    role.department_seq,
+		    dept.department_name,
+		    dept.parent_seq
+		FROM
+			rp_employee emp
+		INNER JOIN
+			rp_vb_roles role
+		ON
+			emp.code = role.code
+		INNER JOIN
+			rp_department dept
+		ON
+			dept.department_seq = role.department_seq
+		ORDER BY
+			dept.department_seq,
+			name
+	</select>
+	
+	<!-- mjkim	2016.03.08	열람 권한 추가하기 -->
+	<insert id="insertRole" parameterType="Emp">
+		INSERT INTO
+			rp_vb_roles (
+				department_seq,
+				code
+			)
+			VALUES (
+				#{ department_seq },
+				#{ code }
+			)
+	</insert>
+	<update id="updateErpMemberForLevel" parameterType="Emp">
+		UPDATE
+			rp_erp_member
+		SET
+			level = #{ level }
+		WHERE
+			code = #{ code } AND
+			(level != 0 AND level !=1)
+	</update>
+	
+	<!-- mjkim	2016.03.08	열람 권한 수정하기 -->
+	<update id="updateRole" parameterType="Emp">
+		UPDATE
+			rp_vb_roles
+		SET
+			department_seq = #{ department_seq },
+			code = #{ code }
+		WHERE
+			department_seq = #{ department_seq } AND
+			code = #{ code }
+	</update>
+	
+	<!-- mjkim	2016.03.08	열람 권한 삭제하기 -->
+	<delete id="deleteRole" parameterType="Emp">
+		DELETE	FROM
+			rp_vb_roles
+		WHERE
+			department_seq = #{ department_seq } AND
+			code = #{ code }
+	</delete>
+	
+<!-- 	
+	mjkim 2015.09.07 메뉴 관리 정보 불러오기(임시)
+	<select id="getMenuList" resultType="MenuManage">
+		SELECT 
+			*
+		FROM
+			rp_menu_settings
+	</select>
+
+	mjkim 2015.09.07 메뉴 관리 설정 처리하기(임시)
+	<update id="updateMenuManage" parameterType="MenuManage">
+		UPDATE
+			rp_menu_settings
+		SET
+			start_date = #{ start_date },
+			end_date = #{ end_date }			
+		WHERE
+			menu_id = #{ menu_id }	
+	</update>
+	
+	mjkim 2015.09.08 메뉴 관리 정보 체크(임시)
+	<select id="getMenuInfo" resultType="MenuManage">
+		SELECT
+			menu_name, count(*) AS apply_flag 
+		FROM
+			rp_menu_settings
+		WHERE
+			CURDATE() >= start_date 
+		AND
+			CURDATE() <![CDATA[ <= ]]> end_date
+	</select>
+	 -->
+</mapper>

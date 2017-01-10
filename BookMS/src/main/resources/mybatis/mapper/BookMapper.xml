@@ -1,0 +1,521 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="bookInfoDao">
+
+	<!-- 도서 전체 목록 가져오기  16.09.08 도서데이터 이전에 따른 변경-->
+	<select id="getAllBooks" resultType="Book" parameterType="hashmap">
+		<!-- select A.book_num bookNum, A.book_name bookName, A.book_writer bookWriter, A.book_translator bookTranslator, A.publisher
+		from book A
+		left outer join proposal B
+		on A.proposal_num = B.proposal_num
+		where B.book_status='accept' -->
+		<!-- select SQL_CALC_FOUND_ROWS
+		D.code, D.firstname, D.lastname, A.book_num bookNum, A.book_name bookName, A.book_writer bookWriter, A.book_translator bookTranslator, A.publisher, A.request, B.proposal_num proposalNum, 
+		A.first_charge_name firstCharge, A.second_charge_name secondCharge, A.first_charge bookFirstCharge
+		from book A, proposal B, rp_employee D
+		where A.proposal_num = B.proposal_num and B.code = D.code and B.book_status='accept'
+		order by A.book_num*1 asc -->
+		select SQL_CALC_FOUND_ROWS
+		A.book_num bookNum, A.book_name bookName, A.book_writer bookWriter, A.book_translator bookTranslator, A.publisher, A.request,C.proposal_num proposalNum,	
+		A.first_charge_name firstCharge, A.second_charge_name secondCharge, A.first_charge bookFirstCharge, 
+		(case when substring_index(B.accept_book_num,'-',-1) = '0' then substring_index(B.accept_book_num,'-',1) else B.accept_book_num end ) acceptNum,
+		D.lastname,D.firstname
+		from book A
+		left outer join accept_book B
+		on A.book_num=B.book_num
+        left outer join proposal C
+        on A.proposal_num = C.proposal_num
+        left outer join rp_employee D
+        on C.code = D.code
+        where C.book_status='accept'
+        <if test="rp == null and oz == null">
+        and if(B.book_num like '%OZ%', substring_index(substring_index(B.accept_book_num,'-',2),'-',-1) >= 6, B.accept_book_num*1 >=333)
+        order by substring_index(B.accept_book_num,'-',1)*1,
+        if(B.accept_book_num not like '%-%', substring_index(concat(B.accept_book_num,'-0'),'-',-1),substring_index(B.accept_book_num,'-',-1))*1 asc
+        </if>
+        <if test="rp != null">
+        and A.book_num not like 'OZ%'
+        order by substring_index(B.accept_book_num,'-',1)*1,
+        if(B.accept_book_num not like '%-%', substring_index(concat(B.accept_book_num,'-0'),'-',-1),substring_index(B.accept_book_num,'-',-1))*1 asc
+        </if>
+		 <if test="oz != null">
+        and A.book_num like 'OZ%'
+        order by substring_index(B.accept_book_num,'-',1)*1, 
+        substring_index(substring_index(B.accept_book_num,'-',2),'-',-1)*1,B.accept_book_num, 
+        substring_index(substring_index(B.accept_book_num,'-',3),'-',-1)*1  asc
+        </if>
+		<if test="current_page != null and max_rows != null">
+			LIMIT ${ (current_page - 1) * max_rows}, ${max_rows}
+		</if>
+	</select>
+	<!-- <select id="selectTotalRecords" resultType="int">
+        SELECT FOUND_ROWS();
+    </select> -->
+
+	<!-- 도서개수 -->
+	<select id="allBooksCount" resultType="Integer" parameterType="hashmap">
+		<!-- select count(A.book_num) bookCount
+		from book A, proposal B
+		where A.proposal_num = B.proposal_num and B.book_status='accept'	 -->
+		select count(1) bookCount
+		from book A
+		left outer join accept_book B
+		on A.book_num=B.book_num
+        left outer join proposal C
+        on A.proposal_num = C.proposal_num
+        left outer join rp_employee D
+        on C.code = D.code
+        where C.book_status='accept'
+       <if test="rp != null">
+        and A.book_num not like 'OZ%'
+        </if>
+		 <if test="oz != null">
+        and A.book_num like 'OZ%'
+        </if>
+        <if test="rp == null and oz == null">
+        and B.accept_book_num*1 >=333
+        </if>
+	</select>
+	
+		<!-- 저자명 검색 개수 -->
+	<select id="allWriterCount" parameterType="hashmap" resultType="Integer">
+		select count(A.book_num), D.code, D.firstname, D.lastname, A.book_num bookNum, A.book_name bookName, A.book_writer bookWriter, A.book_translator bookTranslator, A.publisher, A.request, B.proposal_num proposalNum
+		from book A, proposal B, rp_employee D
+		where A.proposal_num = B.proposal_num and B.code = D.code and B.book_status='accept'
+		<if test="search_value != null">
+			and book_writer
+			like concat('%', #{search_value},'%')
+		</if>
+	</select>
+	
+		<!-- 도서명 검색 개수 -->
+	<select id="allBookNamesCount" parameterType="hashmap" resultType="Integer">
+		select count(A.book_num), D.code, D.firstname, D.lastname, A.book_num bookNum, A.book_name bookName, A.book_writer bookWriter, A.book_translator bookTranslator, A.publisher, A.request, B.proposal_num proposalNum
+		from book A, proposal B, rp_employee D
+		where A.proposal_num = B.proposal_num and B.code = D.code and B.book_status='accept' 
+		<if test="search_value != null">
+			and book_name
+			like concat('%', #{search_value},'%')
+		</if>	
+	</select>
+	
+		<!-- 소지자 검색 개수 .. 소지자->관리자 검색으로 변경 --> 
+		<select id="allBookadminsCount" parameterType="hashmap" resultType="Integer">
+		select count(A.book_num),A.request, A.first_charge bookFirstCharge, D.code, D.firstname, D.lastname, A.book_num bookNum, A.book_name bookName, A.book_writer bookWriter, A.book_translator bookTranslator, A.publisher, A.request, B.proposal_num proposalNum,  A.first_charge_name firstCharge, A.second_charge_name secondCharge
+		from book A, proposal B, rp_employee D
+		where A.proposal_num = B.proposal_num and B.code = D.code and B.book_status='accept'
+			<if test="search_value != null">
+		    and A.first_charge_name
+			like concat('%', #{search_value},'%')
+			</if>	
+		<!-- <if test="search_value != null">
+			and concat(lastname,firstname)
+			like concat('%', #{search_value},'%')
+		</if>	 -->
+	</select>
+	
+	<!-- 요청부서 검색 개수 세기 -->
+	<select id="allBookDeptCount" parameterType="hashmap" resultType="Integer">
+		select count(A.book_num),C.code, firstname, lastname, A.book_num bookNum, A.book_name bookName, A.book_writer bookWriter, A.book_translator bookTranslator, A.publisher
+			from book A, proposal B, bms_history C, rp_employee D
+			where A.proposal_num = B.proposal_num and A.book_num = C.book_num and C.code = D.code and B.book_status='accept'
+		<if test="search_value != null">
+			and concat(A.request)
+			like concat('%', #{search_value},'%')
+		</if>	
+	</select>
+	
+	
+	<!-- hwpark 도서검색 기능 구현 -->
+	<!-- 도서명검색 -->
+	<select id="getAllBooksName" parameterType="hashmap" resultType="Book">
+		select E.accept_book_num acceptNum, A.request, A.first_charge bookFirstCharge, D.code, D.firstname, D.lastname, A.book_num bookNum, A.book_name bookName, A.book_writer bookWriter, A.book_translator bookTranslator, A.publisher, A.request, B.proposal_num proposalNum,  A.first_charge_name firstCharge, A.second_charge_name secondCharge
+		from book A, proposal B, rp_employee D, accept_book E
+		where A.proposal_num = B.proposal_num and B.code = D.code and B.book_status='accept' and E.book_num=A.book_num
+		<if test="search_value != null">
+			and A.book_name
+			like concat('%', #{search_value},'%')
+			order by A.book_num*1 asc
+		</if>
+		<if test="current_page != null and max_rows != null">
+			LIMIT ${ (current_page - 1) * max_rows}, ${max_rows}
+		</if>
+	</select>
+	
+	<!-- 저자명검색 -->
+	<select id="getAllBooksWriter" parameterType="hashmap" resultType="Book">
+		select E.accept_book_num acceptNum, A.request,D.code, A.first_charge bookFirstCharge, D.firstname, D.lastname, A.book_num bookNum, A.book_name bookName, A.book_writer bookWriter, A.book_translator bookTranslator, A.publisher, A.request, B.proposal_num proposalNum, A.first_charge_name firstCharge, A.second_charge_name secondCharge
+		from book A, proposal B, rp_employee D, accept_book E
+		where A.proposal_num = B.proposal_num and B.code = D.code and B.book_status='accept' and E.book_num=A.book_num
+		<if test="search_value != null">
+			and A.book_writer
+			like concat('%', #{search_value},'%')
+			order by A.book_num*1 asc
+		</if>
+		<if test="current_page != null and max_rows != null">
+			LIMIT ${ (current_page - 1) * max_rows}, ${max_rows}
+		</if>
+	</select>
+	
+		<!-- 소지자 검색  -> 관리자 검색으로 변경-->
+		<select id="getAllBooksAdmin" parameterType="hashmap" resultType="Book">
+		select E.accept_book_num acceptNum, A.request, A.first_charge bookFirstCharge, D.code, D.firstname, D.lastname, A.book_num bookNum, A.book_name bookName, A.book_writer bookWriter, A.book_translator bookTranslator, A.publisher, A.request, B.proposal_num proposalNum,  A.first_charge_name firstCharge, A.second_charge_name secondCharge
+		from book A, proposal B, rp_employee D, accept_book E
+		where A.proposal_num = B.proposal_num and B.code = D.code and B.book_status='accept' and E.book_num=A.book_num
+		<if test="search_value != null">
+			and A.first_charge_name
+			like concat('%', #{search_value},'%')
+			order by A.book_num*1 asc
+		</if>
+		<if test="current_page != null and max_rows != null">
+			LIMIT ${ (current_page - 1) * max_rows}, ${max_rows}
+		</if>
+	</select>
+	
+	<!-- 요청부서 검색 -->
+	<select id="getAllBooksDept" parameterType="hashmap" resultType="Book">
+		select E.accept_book_num acceptNum,	A.request, A.first_charge bookFirstCharge, C.code, firstname, lastname, A.book_num bookNum, B.proposalRequestDept,A.book_name bookName, A.book_writer bookWriter, A.book_translator bookTranslator, A.publisher, B.proposal_num proposalNum, A.first_charge_name firstCharge, A.second_charge_name secondCharge
+			from book A, proposal B, bms_history C, rp_employee D, accept_book E
+			where A.proposal_num = B.proposal_num and A.book_num = C.book_num and C.code = D.code and B.book_status='accept' and E.book_num=A.book_num
+		<if test="search_value != null">
+			and A.request
+			like concat('%', #{search_value},'%')
+			order by A.book_num*1 asc
+		</if>
+		<if test="current_page != null and max_rows != null">
+			LIMIT ${ (current_page - 1) * max_rows}, ${max_rows}
+		</if>
+	</select>
+	
+	<!-- 도서검색 END -->
+	
+	
+	<!-- 사원이 신청한 도서 목록(품의올린 책들) 가져오기 -->
+	<!-- 품의가 승인인 것만 가져와야 한다. + 품의 delete_flag=0인것만 가져오기 -->
+	<!-- 최종 뿌리기 / 도서 소지자 변경 버튼 누른후 화면에서 뿌려지는 것-->
+	<!-- 1020/변경 -->
+	<!-- <select id="getEmpBooks" resultType="hashmap" parameterType="hashmap">
+		select A.book_name bookName, B.book_num bookNum, C.proposal_num proposalNum
+		from book A, bms_history B, proposal C
+		where A.book_num = B.book_num and A.proposal_num = C.proposal_num and B.code=#{code} and C.book_status='accept' and C.delete_flag=0
+		order by A.book_num*1 asc
+		<if test="current_page != null and max_rows != null">
+			LIMIT ${ (current_page - 1) * max_rows}, ${max_rows}
+		</if>
+	</select> -->
+	<select id="getEmpBooks" resultType="hashmap" parameterType="hashmap">
+		select book.book_num bookNum, book.book_name bookName, book.first_charge firstCharge, book.second_charge secondCharge, book.second_charge_name secondChargeName
+		from book, proposal
+		where book.first_charge=#{id} and book.proposal_num = proposal.proposal_num and proposal.book_status='accept' and proposal.delete_flag=0
+		<if test="current_page != null and max_rows != null">
+			LIMIT ${ (current_page - 1) * max_rows}, ${max_rows}
+		</if>
+	</select>
+	
+	
+	<select id="getEmpAdminCount" resultType="Integer" parameterType="hashmap">
+		select count(A.book_name)
+		from book A, bms_history B, proposal C
+		where A.book_num = B.book_num and A.proposal_num = C.proposal_num and B.code=#{code} and C.book_status='accept' and C.delete_flag=0
+	</select>
+	
+	<!-- 사원 품의서 개수 구하기 -->
+    <select id="getEmpBooksCount" resultType="Integer" parameterType="hashmap">
+    	select count(C.proposal_num) getEmpBooksCount
+		from book A, bms_history B, proposal C
+		where A.book_num = B.book_num and A.proposal_num = C.proposal_num and B.code=#{code} and C.book_status='accept' and C.delete_flag=0
+    </select>
+	
+	<!-- 품의목록 가져오기+ 00외 추가 -->
+	<!-- 161209 oz 목록 보이기 위한 수정 -->
+	 <select id="getEmpProposalList" resultType="hashmap" parameterType="hashmap">
+		<!-- select  
+				 B.proposal_num proposalNum , A.proposal_date proposalDate, A.book_status bookStatus, A.deny, min(B.book_name) other, count(B.book_name) bookCount
+		from proposal A, book B
+		where A.proposal_num = B.proposal_num and A.code=#{code} and A.delete_flag=0 and B.book_num not like '%-%'
+		group by B.proposal_num
+		order by proposal_date desc -->
+		select  
+				 B.proposal_num proposalNum , A.proposal_date proposalDate, A.book_status bookStatus, A.deny, min(B.book_name) other,  A.book_count bookCount
+		from proposal A, book B
+		where A.proposal_num = B.proposal_num and A.code=#{code} and A.delete_flag=0 
+		group by B.proposal_num
+		order by proposal_date desc
+		<if test="current_page != null and max_rows != null">
+			LIMIT ${ (current_page - 1) * max_rows}, ${max_rows}
+		</if>
+	</select>
+    
+    <!-- 사원 품의서 개수 구하기 -->
+    <select id="proposalsCount" resultType="Integer" parameterType="hashmap">
+    	select count(A.proposal_num) proposalCount
+		from proposal A, book B
+		where A.proposal_num = B.proposal_num and A.code=#{code} and A.delete_flag=0;
+    </select>
+
+	
+	<!-- 품의 일자별 도서 -->
+	<select id="getProposalBooks" resultType="hashmap" parameterType="java.lang.Integer">
+		select A.book_num bookNum, A.book_name bookName, A.book_writer bookWriter, A.book_translator bookTranslator, A.publisher, B.book_status bookStatus, B.deny deny, B.proposal_date proposalDate
+		from book A
+		left outer join proposal B
+		on A.proposal_num = B.proposal_num
+		where B.proposal_num=#{proposalNum}
+	</select>
+	
+	<!-- 품의 테이블에 품의 insert -->
+	<insert id="insertProposal" parameterType="ProposalWrite">
+		insert into proposal(code, proposal_date,purpose,pay,others,refer,agenda_1, agenda_2, agenda_3, agenda_4, proposal_price, vat, first_charge, second_charge, first_charge_name,second_charge_name, book_count)
+		values(#{code},#{date},#{purpose},#{pay},#{others},#{refer},#{agenda1},#{agenda2},#{agenda3},#{agenda4},#{proposalPrice},#{vat},#{firstChargeId},#{secondChargeId},#{firstChargeName},#{secondChargeName},#{bookCount})
+		<selectKey resultType="integer" keyProperty="proposalNum">
+		SELECT LAST_INSERT_ID()
+		</selectKey>
+	
+	</insert>
+	
+	<!-- 같은 도서명으로 도서번호 찾기 -->
+	<select id="getBookNum" resultType="Book" parameterType="java.lang.String">
+		select book_num bookNum
+		from book
+		where book_name=#{bookName}
+	</select>
+	
+	<!-- 도서 테이블에 도서 insert : 파라미터타입: 맵으로 변경-->
+	<insert id="insertBook" parameterType="hashmap">
+		insert into book(book_num, proposal_num, book_name, book_writer, book_translator, publisher,is_copy, book_price, book_shop, ea, price, request, first_charge, second_charge, first_charge_name,second_charge_name,company)
+		values(#{bookNum}, #{proposalNum}, #{bookName}, #{bookWriter}, #{bookTranslator}, #{publisher}, #{is_copy}, #{bookPrice}, #{bookShop}, #{ea}, #{price}, #{deptName}, #{firstChargeId}, #{secondChargeId}, #{firstChargeName}, #{secondChargeName},#{company})
+	</insert>
+	
+	<!-- 소지자 히스토리 테이블에 insert -->
+	<insert id="insertHistory" parameterType="hashmap">
+		insert into bms_history(code, book_num) 
+		values(#{code}, #{bookNum})
+	</insert>
+	
+	
+	<!-- 도서삭제 : delete_flag를 1로 바꾸기 -->
+	<!-- <delete id="deleteBook" parameterType="java.lang.Integer">
+		delete from book 
+		where proposal_num=#{proposalNum}
+	</delete> -->
+	
+	<!-- 품의삭제(도서삭제후) -->
+	<!-- <delete id="deleteProposal" parameterType="java.lang.Integer">
+		delete from proposal 
+		where proposal_num=#{proposalNum}
+	</delete> -->
+	<update id="deleteProposal" parameterType="java.lang.Integer">
+		update proposal
+		set delete_flag=1
+		where proposal_num=#{proposalNum}
+	</update>
+	
+	<!-- 사원목록: 소지자 변경할 때 쓰임 -->
+	<select id="getEmpList" resultType="Emp">
+		select code, lastname, firstname, email
+		from rp_employee
+		where delete_flag=0
+		order by concat(lastname,firstname) asc
+	</select> 
+	
+	<!-- 부서 번호 조건으로 받아서 사원 목록 뿌리기 (관리자(정),(부) 위함) -->
+	<select id="getEmpListByDept" resultType="hashmap" parameterType="java.lang.Integer">
+		select code, lastname, firstname, email
+		from rp_employee
+		where delete_flag=0 and department_seq=#{depseq}
+		order by concat(lastname,firstname) asc
+	</select>
+	
+	<!-- 도서 소지자 변경 -->
+	 <update id="changeBookHolder" parameterType="BookHolder" >
+		<!-- update bms_history 
+		set code=#{empCode}, change_reason=#{changeReason}
+		where book_num=#{bookNum} -->
+		update bms_history 
+		set code=#{empCode}
+		where book_num=#{bookNum}
+	</update> 
+	
+	<!-- 도서테이블에 firstCharge 업뎃 -->
+	<update id="updateFirstCharge" parameterType="hashmap">
+		update book
+		set first_charge_name=#{firstChargeName} , first_charge=#{firstCharge}
+		where book_num=#{bookNum}
+	</update>
+	<!-- secondCharge 업뎃 -->
+	<update id="updateSecondCharge" parameterType="hashmap">
+		update book
+		set second_charge_name=#{secondChargeName} ,second_charge=#{secondCharge}
+		where book_num=#{bookNum}
+	</update>
+	
+	
+	
+	<!-- 도서번호 최대값 알아내기 -->
+	<select id="maxBookNum" resultType="java.lang.Integer">
+		select max(convert(book_num, unsigned))
+		from book
+	</select>
+	
+	<!-- oz 도서번호 최대값 알기 -->
+	<select id="maxOZBookNum" resultType="java.lang.Integer">
+		select max(convert(substring_index(substring_index(book_num,'-',2),'-',-1), unsigned))
+		from book
+		where book_num like '%OZ%'
+	</select>
+	
+	
+	<!-- 품의목록 : 00외 몇건 처리 추가 -->
+	<!-- <select id="showBookName" resultType="hashmap">
+		select book_name, count(*) 
+		from book 
+		where proposal_num=#{proposalNum}
+	</select> -->
+	
+	<!-- 품의.도서 불러오기(도서 수정 화면 위함 & 품의서 출력 화면 위함) -->
+	<!-- 2016/10/17  관리자(정),(부) 추가 -->
+	<select id="showProposalBooks" resultType="hashmap" parameterType="java.lang.Integer">
+		select substring(A.code,1,2) company, A.code, concat(C.lastname , C.firstname) empName,D.department_name department_name,  A.proposal_date proposalDate, A.purpose, A.pay, A.others, A.refer, A.agenda_1, A.agenda_2, A.agenda_3, A.agenda_4, A.proposal_price proposalPrice, A.vat, 
+			   B.book_num bookNum, B.book_name bookName, B.book_writer bookWriter, B.book_translator bookTranslator, B.publisher, B.is_copy isCopy, B.price, B.book_shop bookShop, B.ea, B.book_price bookPrice,A.first_charge_name firstChargeName, A.second_charge_name secondChargeName
+		from proposal A, book B, rp_employee C, rp_department D
+		where A.proposal_num = B.proposal_num and A.code = C.code and D.department_seq = C.department_seq and A.proposal_num=#{proposalNum} 
+		<if test="RP != null">
+		and book_num not like '%-%'
+		</if>
+		<if test="OZ != null">
+		and book_num not like 'OZ-%-%'
+		</if> 
+		order by book_num asc
+	</select>
+	
+	<!-- 북 넘버 가져오기 -->
+	<select id="getProposalBookNum" parameterType="java.lang.Integer" resultType="hashmap">
+		select book_num bookNum, book_name bookName 
+		from book 
+		where proposal_num=#{proposalNum}
+		order by  book_num*1 asc
+	</select>
+	
+	<!-- 품의 수정 -->
+	<update id="updateProposal" parameterType="proposal">
+		update proposal
+		set proposal_date=#{date},purpose=#{purpose},pay=#{pay},others=#{others},refer=#{refer}
+			,agenda_1=#{agenda1},agenda_2=#{agenda2},agenda_3=#{agenda3},agenda_4=#{agenda4}, proposal_price=#{proposalPrice}, vat=#{vat}
+			,first_charge=#{firstChargeId},second_charge=#{secondChargeId}, first_charge_name=#{firstChargeName},second_charge_name=#{secondChargeName}
+		where proposal_num=#{proposalNum}
+	</update>
+	
+	<!-- 도서 수정 -->
+	<update id="updateBook" parameterType="hashmap">
+		update book
+		set book_name=#{bookName}, book_writer=#{bookWriter}, book_translator=#{bookTranslator}, publisher=#{publisher},is_copy=#{isCopy},book_price=#{price}, book_shop=#{bookShop}, ea=#{ea}	
+		where book_num=#{bookNum}
+	</update>
+	
+	<!-- 품의서 프린트 -->
+	<select id="proposalPrint" resultType="hashmap" parameterType="java.lang.Integer">
+		select A.code,A.proposal_date proposalDate, A.purpose, A.pay, A.others, A.refer, A.agenda_1, A.agenda_2, A.agenda_3, A.agenda_4, A.proposal_price proposalPrice, A.vat, 
+			   B.book_num bookNum, B.book_name bookName, B.book_writer bookWriter, B.book_translator bookTranslator, B.publisher, B.is_copy isCopy, B.price, B.book_shop bookShop, B.ea, B.book_price bookPrice
+		from proposal A, book B
+		where A.proposal_num = B.proposal_num and A.proposal_num=#{proposalNum}
+		order by book_num*1 asc
+	</select>
+	
+	<!-- 이름으로 사번 찾기: 도서 소지자 변경 위함. 안씀 -->
+	<!-- <select id="getEmpCode" resultType="java.lang.String" parameterType="java.lang.String">
+	select code
+	from rp_employee 
+	where concat(lastname,firstname) = #{empName}
+	</select>
+	 -->
+	
+	<!-- 품의서 프린트 시 도서 개수 구하기 -->
+	<select id="proposalBookCount" resultType="java.lang.String" parameterType="java.lang.Integer">
+		select count(A.book_num) bookCount
+		from book A, proposal B
+		where A.proposal_num = B.proposal_num and A.proposal_num=#{proposalNum}
+	</select>
+	
+	<!-- 사원 이메일,이름 불러오기(도서 소지자변경 메일 위함) -->
+	<select id="getEmpEmail" resultType="java.lang.String" parameterType="java.lang.String">
+		select email
+		from rp_employee 
+		where code=#{empCode}
+	</select>
+	<select id="getEmpName" resultType="java.lang.String" parameterType="java.lang.String">
+		select concat(lastname,firstname) empName
+		from rp_employee 
+		where code=#{empCode}
+	</select>
+	<!-- 코드찾기 -->
+	<select id="getCode" resultType="java.lang.String" parameterType="java.lang.String">
+		select code
+		from rp_employee
+		where email=#{empCode}
+	</select>
+	
+	<!-- 관리자변경히스토리 테이블에 insert -->
+	<!-- 원래 관리자 flag를 1로 만들고, 새로운 관리자를 0으로 insert한다. -->
+	<insert id="insertBeforeAdminHistory" parameterType="BookHolder">
+		insert into bms_admin_history(book_num, code, history_flag)
+		values(#{bookNum}, #{beforeEmpCode}, 1)	
+	</insert>
+	<insert id="insertAfterAdminHistory" parameterType="BookHolder">
+		insert into bms_admin_history(book_num, code, history_flag, change_reason)
+		values(#{bookNum}, #{empCode}, 0, #{changeReason})	
+	</insert>
+	
+	
+	<!-- 관리자(부) 변경!! -->
+	<insert id="insertBeforeSecondHistory" parameterType="BookHolder">
+		insert into bms_second_history(book_num, code, history_flag)
+		values(#{bookNum}, #{beforeEmpCode}, 1)	
+	</insert>
+	<insert id="insertAfterSecondHistory" parameterType="BookHolder">
+		insert into bms_second_history(book_num, code, history_flag, change_reason)
+		values(#{bookNum}, #{empCode}, 0, #{changeReason})	
+	</insert>
+	
+	
+	
+	
+	<!-- 도서 신청할때 관리자(정)테이블에 insert -->
+	<insert id="insertBookAdminHistory" parameterType="hashmap">
+		insert into bms_admin_history(book_num, id,history_flag) 
+		values(#{bookNum}, #{firstChargeId},2);
+	</insert>
+	
+	<!-- 관리자(부) -->
+	<insert id="insertBookSecondHistory" parameterType="hashmap">
+		insert into bms_second_history(book_num,id,history_flag) 
+		values(#{bookNum}, #{secondChargeId}, 2);
+	</insert>
+	
+	<!-- 도서수정- 관리자 보여주기 -->
+	<select id="getAdminName" parameterType="java.lang.Integer" resultType="ProposalWrite">
+		select first_charge firstChargeId, second_charge secondChargeId
+		from proposal
+		where proposal_num=#{proposalNum}
+	</select>
+	
+	<!-- book테이블 관련 삭제하기 -->
+	<delete id="delSecondHistory" parameterType="java.lang.Integer" >
+		delete from bms_second_history 
+		where book_num in (select book_num from book where proposal_num=#{proposalNum})
+	</delete>
+	<delete id="delAdminHistory" parameterType="java.lang.Integer" >
+		delete from bms_admin_history 
+		where book_num in (select book_num from book where proposal_num=#{proposalNum})
+	</delete>
+	<delete id="delBmsHistory" parameterType="java.lang.Integer" >
+		delete from bms_history
+		where book_num in (select book_num from book where proposal_num=#{proposalNum})
+	</delete>
+	<delete id="delBook" parameterType="java.lang.Integer" >
+		delete from book 
+		where proposal_num=#{proposalNum}
+	</delete>
+	
+</mapper>
